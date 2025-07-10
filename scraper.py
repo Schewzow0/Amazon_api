@@ -37,3 +37,22 @@ def get_amazon_product_data(url: str) -> dict:
 
         browser.close()
         return result
+
+
+def get_amazon_price(url: str) -> str | None:
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            page.wait_for_selector("#corePrice_feature_div .a-offscreen", timeout=10000)
+            price_el = page.query_selector("#corePrice_feature_div .a-offscreen")
+            price = price_el.inner_text().strip() if price_el else None
+        except:
+            price = None
+
+        browser.close()
+        return price

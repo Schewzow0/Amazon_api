@@ -41,4 +41,3 @@ if __name__ == "__main__":
     data = get_amazon_product_data(url)
     print(json.dumps(data, indent=4, ensure_ascii=False))
 
-

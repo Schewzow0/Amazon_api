@@ -2,8 +2,7 @@ from playwright.sync_api import sync_playwright, Page
 from typing import Optional
 import time
 
-
-# Настройки эмуляции пользователя из США
+# --- Конфигурация эмуляции браузера под пользователя из США ---
 context_args = dict(
     locale='en-US',
     timezone_id='America/New_York',
@@ -16,30 +15,27 @@ context_args = dict(
 
 def handle_additional_prompts(page: Page):
     """
-    Обрабатывает капчи и подтверждения (например, 'Continue shopping').
-    В случае появления кнопки — вызывает принудительное нажатие через JS.
+    Обработка дополнительных окон Amazon: капча, подтверждение региона и пр.
+    - Эмулирует клик по кнопке при капче
+    - Нажимает "Continue shopping", если появляется
     """
     try:
         if page.locator("form[action='/errors/validateCaptcha']").is_visible(timeout=3000):
-            print("[INFO] CAPTCHA detected. Attempting manual button press...")
-
+            print("[INFO] CAPTCHA detected. Attempting JS-based confirmation...")
             page.evaluate("""
                 () => {
                     const btn = document.querySelector("form[action='/errors/validateCaptcha'] button[type='submit']");
                     if (btn) {
                         const evt = new MouseEvent('click', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window
+                            bubbles: true, cancelable: true, view: window
                         });
                         btn.dispatchEvent(evt);
                     }
                 }
             """)
             page.wait_for_timeout(2000)
-            return
-    except Exception as e:
-        print(f"[DEBUG] CAPTCHA handling failed: {e}")
+    except:
+        pass
 
     try:
         if page.is_visible('button:has-text("Continue shopping")', timeout=3000):
@@ -51,23 +47,25 @@ def handle_additional_prompts(page: Page):
 
 def set_region_zip(page: Page) -> bool:
     """
-    Пытается сменить регион прямо на странице товара.
-    Возвращает True, если регион был успешно установлен.
+    Устанавливает регион доставки (по ZIP-коду 10001).
+    - Устанавливает cookies вручную
+    - Вводит почтовый индекс в модальное окно смены региона
     """
     try:
-        page.evaluate("""() => {
-            document.cookie = 'lc-main=en_US; path=/;';
-            document.cookie = 'i18n-prefs=USD; path=/;';
-        }""")
-
+        page.evaluate("""
+            () => {
+                document.cookie = 'lc-main=en_US; path=/;';
+                document.cookie = 'i18n-prefs=USD; path=/;';
+            }
+        """)
         page.wait_for_selector('input[data-action-type="SELECT_LOCATION"]', timeout=5000)
         page.click('input[data-action-type="SELECT_LOCATION"]', force=True)
         page.wait_for_timeout(1000)
-
         page.fill("input#GLUXZipUpdateInput", "10001")
         page.press("input#GLUXZipUpdateInput", "Enter")
         page.wait_for_timeout(1500)
 
+        # Иногда появляется вторичное подтверждение
         try:
             page.keyboard.press("Enter")
             page.wait_for_timeout(1000)
@@ -82,61 +80,46 @@ def set_region_zip(page: Page) -> bool:
 
 def get_amazon_product_data(url: str) -> dict:
     """
-    Получает данные о товаре Amazon: цена, изображение и заголовок.
+    Получает полные данные товара Amazon: название, изображение и цена.
+    Возвращает словарь с ключами: link, title, img, price
     """
     start = time.time()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(**context_args)
         page = context.new_page()
-
         result = {"link": url, "title": None, "img": None, "price": None}
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
             handle_additional_prompts(page)
 
-            # Меняем регион на странице товара
             if not set_region_zip(page):
-                return {"error": "Region selection failed. Try again later."}
+                return {"error": "Region selection failed."}
 
             handle_additional_prompts(page)
 
-            # Заголовок
+            # Название товара
             try:
-                page.wait_for_selector("#productTitle", timeout=10000)
-                result["title"] = page.query_selector("#productTitle").inner_text().strip()
+                result["title"] = page.locator("#productTitle").text_content(timeout=10000).strip()
             except:
-                result["title"] = None
+                pass
 
-            # Изображение
+            # Главное изображение товара
             try:
-                page.wait_for_selector("#landingImage", timeout=10000)
                 result["img"] = page.query_selector("#landingImage").get_attribute("src")
             except:
-                result["img"] = None
+                pass
 
-            # Цена
+            # Цена товара — из основного блока
             try:
-                # Находим контейнер с основной ценой (всегда в карточке товара)
                 container = page.query_selector("#corePriceDisplay_desktop_feature_div")
                 if container:
                     price_el = container.query_selector("span.aok-offscreen")
                     if price_el:
                         result["price"] = price_el.inner_text().strip().replace("$", "")
-                    else:
-                        result["price"] = None
-                else:
-                    result["price"] = None
-            except Exception as e:
-                print(f"[DEBUG] Ошибка при извлечении цены: {e}")
-                result["price"] = None
-
-
-
-
-
-
+            except:
+                pass
 
         except Exception as e:
             print("[ERROR] Failed to parse product:", e)
@@ -144,19 +127,21 @@ def get_amazon_product_data(url: str) -> dict:
         context.close()
         browser.close()
 
-    print(f"[INFO] Parsed in {round(time.time() - start, 2)} sec: {url}")
+    print(f"[INFO] Product parsed in {round(time.time() - start, 2)} sec: {url}")
     return result
 
 
 def get_amazon_price(url: str) -> Optional[str]:
     """
     Получает только цену товара Amazon.
+    Возвращает строку с ценой или None при ошибке.
     """
     start = time.time()
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(**context_args)
         page = context.new_page()
+        price = None
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
@@ -167,11 +152,23 @@ def get_amazon_price(url: str) -> Optional[str]:
 
             handle_additional_prompts(page)
 
-            page.wait_for_selector("#corePrice_feature_div .a-offscreen", timeout=10000)
-            price_el = page.query_selector("#corePrice_feature_div .a-offscreen")
-            price = price_el.inner_text().strip().replace("$", "") if price_el else None
-        except:
-            price = None
+            # Явное ожидание появления блока с ценой
+            try:
+                page.wait_for_selector("#corePriceDisplay_desktop_feature_div", timeout=5000)
+                container = page.query_selector("#corePriceDisplay_desktop_feature_div")
+                if container:
+                    price_el = container.query_selector("span.aok-offscreen")
+                    if price_el:
+                        price = price_el.inner_text().strip().replace("$", "")
+                    else:
+                        print("[WARN] Цена не найдена в блоке.")
+                else:
+                    print("[WARN] Блок с ценой не найден.")
+            except Exception as e:
+                print(f"[ERROR] Ошибка при ожидании блока цены: {e}")
+
+        except Exception as e:
+            print(f"[ERROR] Price parsing failed: {e}")
 
         context.close()
         browser.close()

@@ -1,6 +1,14 @@
 from fastapi import FastAPI, Query
 from scraper import get_amazon_product_data, get_amazon_price
 
+# для работы под виндовс
+import asyncio
+import sys
+
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+
 app = FastAPI()
 
 

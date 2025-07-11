@@ -1,9 +1,29 @@
 from playwright.sync_api import sync_playwright
 
+
 def get_amazon_product_data(url: str) -> dict:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+
+        context = browser.new_context(
+            locale='en-US',
+            timezone_id='America/New_York',
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            geolocation={"longitude": -74.006, "latitude": 40.7128},  # Нью-Йорк
+            permissions=["geolocation"],
+            extra_http_headers={
+                "Accept-Language": "en-US,en;q=0.9"
+            }
+        )
+
+        page = context.new_page()
+
+        # Установка куки региона (США)
+        page.goto("https://www.amazon.com", wait_until="domcontentloaded", timeout=20000)
+        page.evaluate("""() => {
+            document.cookie = 'lc-main=en_US; path=/;';
+            document.cookie = 'i18n-prefs=USD; path=/;';
+        }""")
 
         result = {"link": url}
 
@@ -40,11 +60,27 @@ def get_amazon_product_data(url: str) -> dict:
 
 
 def get_amazon_price(url: str) -> str | None:
-    from playwright.sync_api import sync_playwright
-
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+
+        context = browser.new_context(
+            locale='en-US',
+            timezone_id='America/New_York',
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            geolocation={"longitude": -74.006, "latitude": 40.7128},
+            permissions=["geolocation"],
+            extra_http_headers={
+                "Accept-Language": "en-US,en;q=0.9"
+            }
+        )
+
+        page = context.new_page()
+
+        page.goto("https://www.amazon.com", wait_until="domcontentloaded", timeout=20000)
+        page.evaluate("""() => {
+            document.cookie = 'lc-main=en_US; path=/;';
+            document.cookie = 'i18n-prefs=USD; path=/;';
+        }""")
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)

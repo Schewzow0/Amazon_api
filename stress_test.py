@@ -6,6 +6,7 @@ api_base = "http://127.0.0.1:8000"
 
 num_requests = 10  # Можем увеличить до 50–100 при стабильной работе
 
+
 def test_endpoint(endpoint: str):
     errors = 0
     print(f"\nTesting {endpoint}...")
@@ -23,6 +24,7 @@ def test_endpoint(endpoint: str):
             print(f"[{i+1}] ❌ Exception: {e}")
             errors += 1
     print(f"Done. {num_requests - errors} success / {errors} errors.")
+
 
 if __name__ == "__main__":
     test_endpoint("price")

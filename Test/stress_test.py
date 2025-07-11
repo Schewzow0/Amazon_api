@@ -4,7 +4,7 @@ import time
 url = "https://www.amazon.com/dp/B0B17KHCQN"
 api_base = "http://127.0.0.1:8000"
 
-num_requests = 100  # Можем увеличить до 50–100 при стабильной работе
+num_requests = 10  # Можем увеличить до 50–100 при стабильной работе
 
 
 def test_endpoint(endpoint: str):

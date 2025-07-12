@@ -121,6 +121,18 @@ def get_amazon_product_data(url: str) -> dict:
             except:
                 pass
 
+            # Fallback: альтернативный способ, если не нашли
+            if not result["price"]:
+                try:
+                    alt_price = page.query_selector("span.a-offscreen")
+                    if alt_price:
+                        text = alt_price.inner_text().strip()
+                        if "$" in text:
+                            result["price"] = text.replace("$", "")
+                except:
+                    pass
+
+
         except Exception as e:
             print("[ERROR] Failed to parse product:", e)
 
@@ -160,12 +172,19 @@ def get_amazon_price(url: str) -> Optional[str]:
                     price_el = container.query_selector("span.aok-offscreen")
                     if price_el:
                         price = price_el.inner_text().strip().replace("$", "")
-                    else:
-                        print("[WARN] Цена не найдена в блоке.")
-                else:
-                    print("[WARN] Блок с ценой не найден.")
-            except Exception as e:
-                print(f"[ERROR] Ошибка при ожидании блока цены: {e}")
+            except:
+                pass
+
+            # Fallback: если не нашли — ищем альтернативный span
+            if not price:
+                try:
+                    alt_price = page.query_selector("span.a-offscreen")
+                    if alt_price:
+                        text = alt_price.inner_text().strip()
+                        if "$" in text:
+                            price = text.replace("$", "")
+                except:
+                    pass
 
         except Exception as e:
             print(f"[ERROR] Price parsing failed: {e}")

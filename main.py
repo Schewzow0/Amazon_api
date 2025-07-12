@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 from scraper import get_amazon_product_data, get_amazon_price
 
 # Поддержка Windows для корректной работы Playwright
@@ -10,6 +11,15 @@ if sys.platform.startswith("win"):
 
 # Инициализация FastAPI-приложения
 app = FastAPI(title="Amazon Scraper API", version="1.0")
+
+# --- Включаем CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/", tags=["Health"])

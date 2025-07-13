@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
-from scraper import get_amazon_product_data, get_amazon_price
+from scraper_usa import get_amazon_product_data, get_amazon_price
 
 import os
 import smtplib

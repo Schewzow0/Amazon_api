@@ -45,38 +45,6 @@ def handle_additional_prompts(page: Page):
         pass
 
 
-def set_region_zip(page: Page) -> bool:
-    """
-    Устанавливает регион доставки (по ZIP-коду 10001).
-    - Устанавливает cookies вручную
-    - Вводит почтовый индекс в модальное окно смены региона
-    """
-    try:
-        page.evaluate("""
-            () => {
-                document.cookie = 'lc-main=en_US; path=/;';
-                document.cookie = 'i18n-prefs=USD; path=/;';
-            }
-        """)
-        page.wait_for_selector('input[data-action-type="SELECT_LOCATION"]', timeout=5000)
-        page.click('input[data-action-type="SELECT_LOCATION"]', force=True)
-        page.wait_for_timeout(1000)
-        page.fill("input#GLUXZipUpdateInput", "10001")
-        page.press("input#GLUXZipUpdateInput", "Enter")
-        page.wait_for_timeout(1500)
-
-        try:
-            page.keyboard.press("Enter")
-            page.wait_for_timeout(1000)
-        except:
-            pass
-
-        return True
-    except Exception as e:
-        print("[ERROR] Failed to set region:", e)
-        return False
-
-
 def get_amazon_product_data(url: str) -> dict:
     """
     Получает полные данные товара Amazon: название, изображение и цена.
@@ -91,11 +59,6 @@ def get_amazon_product_data(url: str) -> dict:
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
-            handle_additional_prompts(page)
-
-            if not set_region_zip(page):
-                return {"error": "Region selection failed."}
-
             handle_additional_prompts(page)
 
             # Название товара
@@ -155,11 +118,6 @@ def get_amazon_price(url: str) -> Optional[str]:
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
-            handle_additional_prompts(page)
-
-            if not set_region_zip(page):
-                return None
-
             handle_additional_prompts(page)
 
             # Явное ожидание появления блока с ценой

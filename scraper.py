@@ -2,7 +2,7 @@ from playwright.sync_api import sync_playwright, Page
 from typing import Optional
 import time
 
-# --- Конфигурация эмуляции браузера под пользователя из США ---
+# --- Настройки эмуляции браузера ---
 context_args = dict(
     locale='en-US',
     timezone_id='America/New_York',
@@ -65,7 +65,6 @@ def set_region_zip(page: Page) -> bool:
         page.press("input#GLUXZipUpdateInput", "Enter")
         page.wait_for_timeout(1500)
 
-        # Иногда появляется вторичное подтверждение
         try:
             page.keyboard.press("Enter")
             page.wait_for_timeout(1000)
@@ -85,7 +84,7 @@ def get_amazon_product_data(url: str) -> dict:
     """
     start = time.time()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)
         context = browser.new_context(**context_args)
         page = context.new_page()
         result = {"link": url, "title": None, "img": None, "price": None}
@@ -121,7 +120,7 @@ def get_amazon_product_data(url: str) -> dict:
             except:
                 pass
 
-            # Fallback: альтернативный способ, если не нашли
+            # Альтернативный способ поиска цены
             if not result["price"]:
                 try:
                     alt_price = page.query_selector("span.a-offscreen")
@@ -131,7 +130,6 @@ def get_amazon_product_data(url: str) -> dict:
                             result["price"] = text.replace("$", "")
                 except:
                     pass
-
 
         except Exception as e:
             print("[ERROR] Failed to parse product:", e)
@@ -175,7 +173,7 @@ def get_amazon_price(url: str) -> Optional[str]:
             except:
                 pass
 
-            # Fallback: если не нашли — ищем альтернативный span
+            # Альтернативный span для поиска цены
             if not price:
                 try:
                     alt_price = page.query_selector("span.a-offscreen")

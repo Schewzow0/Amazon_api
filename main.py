@@ -6,7 +6,7 @@ import smtplib
 from email.message import EmailMessage
 from pydantic import BaseModel, EmailStr
 
-# Поддержка Windows для корректной работы Playwright
+# Поддержка Windows для работы Playwright
 import asyncio
 import sys
 
@@ -16,7 +16,7 @@ if sys.platform.startswith("win"):
 # --- FastAPI app ---
 app = FastAPI(title="Amazon Scraper API", version="1.0")
 
-# --- Включаем CORS ---
+# --- CORS для взаимодействия с фронтендом ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,30 +26,31 @@ app.add_middleware(
 )
 
 
-# --- Модель тела запроса для email ---
+# --- Структура email-сообщения для отправки ---
 class EmailRequest(BaseModel):
     email: EmailStr
     subject: str
     message: str
 
 
-# --- Функция отправки письма через Gmail ---
+# --- Отправка email через SMTP Gmail ---
 def send_email(to_email: str, subject: str, message: str):
-    gmail_user = "your_email@gmail.com"              # <- сюда свой ящик
-    gmail_password = "your_app_password_here"        # <- сюда пароль приложения
+    gmail_user = "amazontrackerbiz@gmail.com"
+    gmail_password = "pmkbvrqqhjjxhvoj"
 
     msg = EmailMessage()
     msg["From"] = gmail_user
     msg["To"] = to_email
     msg["Subject"] = subject
-    msg.set_content(message)
+    msg["Reply-To"] = gmail_user
+    msg.set_content(message, subtype='plain', charset='utf-8')
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(gmail_user, gmail_password)
         smtp.send_message(msg)
 
 
-# --- Healthcheck ---
+# --- Healthcheck: базовая проверка доступности API ---
 @app.get("/", tags=["Health"])
 def root():
     """
@@ -87,6 +88,11 @@ def price(uri: str = Query(..., description="Amazon product URL")):
 # --- POST /send-email ---
 @app.post("/send-email", tags=["Email"])
 def send_email_handler(data: EmailRequest = Body(...)):
+    """
+        Отправить email-сообщение.
+        Принимает тело запроса с email-адресом, темой и текстом письма.
+        Возвращает статус отправки или сообщение об ошибке.
+        """
     try:
         send_email(data.email, data.subject, data.message)
         return {"status": "success", "message": "Email sent"}

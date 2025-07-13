@@ -2,7 +2,9 @@ from fastapi import FastAPI, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from scraper import get_amazon_product_data, get_amazon_price
 
+import os
 import smtplib
+from dotenv import load_dotenv
 from email.message import EmailMessage
 from pydantic import BaseModel, EmailStr
 
@@ -12,6 +14,8 @@ import sys
 
 if sys.platform.startswith("win"):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+load_dotenv()
 
 # --- FastAPI app ---
 app = FastAPI(title="Amazon Scraper API", version="1.0")
@@ -35,8 +39,8 @@ class EmailRequest(BaseModel):
 
 # --- Отправка email через SMTP Gmail ---
 def send_email(to_email: str, subject: str, message: str):
-    gmail_user = "amazontrackerbiz@gmail.com"
-    gmail_password = "pmkbvrqqhjjxhvoj"
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_password = os.getenv("GMAIL_PASSWORD")
 
     msg = EmailMessage()
     msg["From"] = gmail_user
